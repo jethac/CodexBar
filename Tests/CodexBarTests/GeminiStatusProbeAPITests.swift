@@ -16,7 +16,111 @@ struct GeminiStatusProbeAPITests {
     }
 
     @Test
-    func `rejects api key auth type`() async throws {
+    func `maps Gemini CLI configured auth types`() throws {
+        let env = try GeminiTestEnvironment()
+        defer { env.cleanup() }
+
+        try env.writeSettings(authType: "oauth-personal")
+        #expect(GeminiStatusProbe.currentAuthType(homeDirectory: env.homeURL.path) == .oauthPersonal)
+
+        try env.writeSettings(authType: "gemini-api-key")
+        #expect(GeminiStatusProbe.currentAuthType(homeDirectory: env.homeURL.path) == .apiKey)
+
+        try env.writeSettings(authType: "vertex-ai")
+        #expect(GeminiStatusProbe.currentAuthType(homeDirectory: env.homeURL.path) == .vertexAI)
+    }
+
+    @Test
+    func `maps Gemini CLI environment auth patterns when settings are unset`() throws {
+        let env = try GeminiTestEnvironment()
+        defer { env.cleanup() }
+
+        #expect(GeminiStatusProbe.currentAuthType(
+            homeDirectory: env.homeURL.path,
+            environment: ["GOOGLE_GENAI_USE_GCA": "true"]) == .oauthPersonal)
+        #expect(GeminiStatusProbe.currentAuthType(
+            homeDirectory: env.homeURL.path,
+            environment: ["GOOGLE_GENAI_USE_VERTEXAI": "true"]) == .vertexAI)
+        #expect(GeminiStatusProbe.currentAuthType(
+            homeDirectory: env.homeURL.path,
+            environment: ["GEMINI_API_KEY": "test-key"]) == .apiKey)
+        #expect(GeminiStatusProbe.currentAuthType(
+            homeDirectory: env.homeURL.path,
+            environment: ["GOOGLE_API_KEY": "test-key"]) == .apiKey)
+    }
+
+    @Test
+    func `reads Gemini API key from environment and settings`() throws {
+        let env = try GeminiTestEnvironment()
+        defer { env.cleanup() }
+
+        #expect(GeminiStatusProbe.currentAPIKey(
+            homeDirectory: env.homeURL.path,
+            environment: ["GOOGLE_API_KEY": " google-key "]) == "google-key")
+
+        try env.writeSettingsJSON("""
+        {
+          "security": {
+            "auth": {
+              "selectedType": "gemini-api-key",
+              "apiKey": "settings-key"
+            }
+          }
+        }
+        """)
+        #expect(GeminiStatusProbe.currentAPIKey(homeDirectory: env.homeURL.path, environment: [:]) == "settings-key")
+    }
+
+    @Test
+    func `provides stored OAuth access token for AI Studio requests`() async throws {
+        let env = try GeminiTestEnvironment()
+        defer { env.cleanup() }
+        try env.writeCredentials(
+            accessToken: "stored-token",
+            refreshToken: "refresh-token",
+            expiry: Date().addingTimeInterval(3600),
+            idToken: nil)
+
+        let token = try await GeminiStatusProbe.currentOAuthAccessToken(homeDirectory: env.homeURL.path)
+
+        #expect(token == "stored-token")
+    }
+
+    @Test
+    func `rejects modern Gemini API key auth type`() async throws {
+        let env = try GeminiTestEnvironment()
+        defer { env.cleanup() }
+        try env.writeSettings(authType: "gemini-api-key")
+
+        let probe = GeminiStatusProbe(timeout: 1, homeDirectory: env.homeURL.path)
+        await Self.expectError(.unsupportedAuthType("API key")) {
+            _ = try await probe.fetch()
+        }
+    }
+
+    @Test
+    func `rejects Gemini API key auth selected from environment`() async throws {
+        let env = try GeminiTestEnvironment()
+        defer { env.cleanup() }
+
+        let previousValue = ProcessInfo.processInfo.environment["GEMINI_API_KEY"]
+        setenv("GEMINI_API_KEY", "test-key", 1)
+        defer {
+            if let previousValue {
+                setenv("GEMINI_API_KEY", previousValue, 1)
+            } else {
+                unsetenv("GEMINI_API_KEY")
+            }
+        }
+
+        let probe = GeminiStatusProbe(timeout: 1, homeDirectory: env.homeURL.path)
+        await Self.expectError(.unsupportedAuthType("API key")) {
+            _ = try await probe.fetch()
+        }
+    }
+
+    @Test
+    func `rejects legacy API key auth type`() async throws {
         let env = try GeminiTestEnvironment()
         defer { env.cleanup() }
         try env.writeSettings(authType: "api-key")

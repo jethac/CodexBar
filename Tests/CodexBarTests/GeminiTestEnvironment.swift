@@ -42,6 +42,10 @@ struct GeminiTestEnvironment {
         try data.write(to: self.geminiDir.appendingPathComponent("settings.json"), options: .atomic)
     }
 
+    func writeSettingsJSON(_ json: String) throws {
+        try json.write(to: self.geminiDir.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)
+    }
+
     func writeCredentials(
         accessToken: String?,
         refreshToken: String?,

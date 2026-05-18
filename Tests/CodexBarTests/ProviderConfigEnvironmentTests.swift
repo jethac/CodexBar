@@ -29,6 +29,20 @@ struct ProviderConfigEnvironmentTests {
     }
 
     @Test
+    func `applies API key override for Gemini`() {
+        let config = ProviderConfig(id: .gemini, apiKey: "gemini-token")
+        let env = ProviderConfigEnvironment.applyAPIKeyOverride(
+            base: [:],
+            provider: .gemini,
+            config: config)
+
+        #expect(env["GEMINI_API_KEY"] == "gemini-token")
+        #expect(GeminiStatusProbe.currentAuthType(environment: env) == .apiKey)
+        #expect(GeminiStatusProbe.currentAPIKey(environment: env) == "gemini-token")
+        #expect(ProviderConfigEnvironment.supportsAPIKeyOverride(for: .gemini))
+    }
+
+    @Test
     func `applies API key override for open router`() {
         let config = ProviderConfig(id: .openrouter, apiKey: "or-token")
         let env = ProviderConfigEnvironment.applyAPIKeyOverride(

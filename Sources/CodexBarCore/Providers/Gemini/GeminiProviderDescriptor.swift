@@ -31,14 +31,51 @@ public enum GeminiProviderDescriptor {
                 iconResourceName: "ProviderIcon-gemini",
                 color: ProviderColor(red: 171 / 255, green: 135 / 255, blue: 234 / 255)),
             tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: { "Gemini cost summary is not supported." }),
+                supportsTokenCost: true,
+                noDataMessage: { "No Gemini CLI session token data found in ~/.gemini/tmp/*/chats." }),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .api],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [GeminiStatusFetchStrategy()] })),
+                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in
+                    [GeminiAPIKeyAIStudioFetchStrategy(), GeminiStatusFetchStrategy()]
+                })),
             cli: ProviderCLIConfig(
                 name: "gemini",
                 versionDetector: { _ in ProviderVersionDetector.geminiVersion() }))
+    }
+}
+
+struct GeminiAPIKeyAIStudioFetchStrategy: ProviderFetchStrategy {
+    static let sourceLabel = "api-key-aistudio"
+
+    let id: String = "gemini.api-key.aistudio"
+    let kind: ProviderFetchKind = .apiToken
+
+    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
+        GeminiStatusProbe.currentAuthType(environment: context.env) == .apiKey
+            && GeminiStatusProbe.currentAPIKey(environment: context.env) != nil
+    }
+
+    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
+        guard let apiKey = GeminiStatusProbe.currentAPIKey(environment: context.env) else {
+            throw GeminiStatusProbeError.unsupportedAuthType("API key")
+        }
+
+        let aiStudioContext = try await GeminiAIStudioBillingFetcher().resolveContext(apiKey: apiKey)
+        let billingStatus = aiStudioContext.billingEnabled ? "billing enabled" : "free / billing disabled"
+        let usage = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            updatedAt: Date(),
+            identity: ProviderIdentitySnapshot(
+                providerID: .gemini,
+                accountEmail: nil,
+                accountOrganization: aiStudioContext.billingAccountID,
+                loginMethod: "API key · \(billingStatus)"))
+        return self.makeResult(usage: usage, sourceLabel: Self.sourceLabel)
+    }
+
+    func shouldFallback(on _: Error, context: ProviderFetchContext) -> Bool {
+        GeminiStatusProbe.currentAuthType(environment: context.env) != .apiKey
     }
 }
 

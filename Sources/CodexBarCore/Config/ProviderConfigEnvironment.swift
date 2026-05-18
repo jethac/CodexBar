@@ -70,6 +70,8 @@ public enum ProviderConfigEnvironment {
         switch provider {
         case .openai:
             OpenAIAPISettingsReader.adminAPIKeyEnvironmentKey
+        case .gemini:
+            "GEMINI_API_KEY"
         case .claude:
             ClaudeAdminAPISettingsReader.adminAPIKeyEnvironmentKey
         case .zai:

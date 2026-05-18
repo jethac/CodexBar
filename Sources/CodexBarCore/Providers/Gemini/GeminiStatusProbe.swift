@@ -105,7 +105,9 @@ public enum GeminiStatusProbeError: LocalizedError, Sendable, Equatable {
         case .notLoggedIn:
             "Not logged in to Gemini. Run 'gemini' in Terminal to authenticate."
         case let .unsupportedAuthType(authType):
-            "Gemini \(authType) auth not supported. Use Google account (OAuth) instead."
+            "Gemini OAuth quota is unavailable for \(authType) auth. "
+                + "API-key Gemini CLI setups are valid, but CodexBar can only read remote quota "
+                + "from Google account (OAuth) credentials."
         case let .parseFailed(msg):
             "Could not parse Gemini usage: \(msg)"
         case .timedOut:
@@ -116,11 +118,24 @@ public enum GeminiStatusProbeError: LocalizedError, Sendable, Equatable {
     }
 }
 
-public enum GeminiAuthType: String, Sendable {
-    case oauthPersonal = "oauth-personal"
-    case apiKey = "api-key"
-    case vertexAI = "vertex-ai"
+public enum GeminiAuthType: Sendable, Equatable {
+    case oauthPersonal
+    case apiKey
+    case vertexAI
     case unknown
+
+    init(rawValue: String) {
+        switch rawValue {
+        case "oauth-personal":
+            self = .oauthPersonal
+        case "gemini-api-key", "api-key":
+            self = .apiKey
+        case "vertex-ai":
+            self = .vertexAI
+        default:
+            self = .unknown
+        }
+    }
 }
 
 /// User tier IDs returned from the Cloud Code Private API (loadCodeAssist).
@@ -153,20 +168,72 @@ public struct GeminiStatusProbe: Sendable {
         self.dataLoader = dataLoader
     }
 
-    /// Reads the current Gemini auth type from settings.json
-    public static func currentAuthType(homeDirectory: String = NSHomeDirectory()) -> GeminiAuthType {
+    /// Reads the current Gemini auth type from settings.json, falling back to
+    /// the same environment-variable auth selection Gemini CLI uses in
+    /// non-interactive mode.
+    public static func currentAuthType(
+        homeDirectory: String = NSHomeDirectory(),
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> GeminiAuthType
+    {
         let settingsURL = URL(fileURLWithPath: homeDirectory + Self.settingsPath)
 
-        guard let data = try? Data(contentsOf: settingsURL),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let security = json["security"] as? [String: Any],
-              let auth = security["auth"] as? [String: Any],
-              let selectedType = auth["selectedType"] as? String
-        else {
-            return .unknown
+        if let data = try? Data(contentsOf: settingsURL),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let security = json["security"] as? [String: Any],
+           let auth = security["auth"] as? [String: Any],
+           let selectedType = auth["selectedType"] as? String,
+           !selectedType.isEmpty
+        {
+            return GeminiAuthType(rawValue: selectedType)
         }
 
-        return GeminiAuthType(rawValue: selectedType) ?? .unknown
+        return Self.authTypeFromEnvironment(environment)
+    }
+
+    public static func currentAPIKey(
+        homeDirectory: String = NSHomeDirectory(),
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
+    {
+        for key in ["GEMINI_API_KEY", "GOOGLE_API_KEY"] {
+            if let value = environment[key]?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty {
+                return value
+            }
+        }
+
+        let settingsURL = URL(fileURLWithPath: homeDirectory + Self.settingsPath)
+        guard let data = try? Data(contentsOf: settingsURL),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else {
+            return nil
+        }
+        for key in ["apiKey", "geminiApiKey", "googleApiKey"] {
+            if let value = json[key] as? String, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return value.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        if let security = json["security"] as? [String: Any],
+           let auth = security["auth"] as? [String: Any]
+        {
+            for key in ["apiKey", "geminiApiKey", "googleApiKey"] {
+                if let value = auth[key] as? String, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    return value.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func authTypeFromEnvironment(_ environment: [String: String]) -> GeminiAuthType {
+        if environment["GOOGLE_GENAI_USE_GCA"] == "true" {
+            return .oauthPersonal
+        }
+        if environment["GOOGLE_GENAI_USE_VERTEXAI"] == "true" {
+            return .vertexAI
+        }
+        if environment["GEMINI_API_KEY"]?.isEmpty == false || environment["GOOGLE_API_KEY"]?.isEmpty == false {
+            return .apiKey
+        }
+        return .unknown
     }
 
     public func fetch() async throws -> GeminiStatusSnapshot {
@@ -453,7 +520,7 @@ public struct GeminiStatusProbe: Sendable {
         return CodeAssistStatus(tier: tier, projectId: projectId)
     }
 
-    private struct OAuthCredentials {
+    struct OAuthCredentials {
         let accessToken: String?
         let idToken: String?
         let refreshToken: String?
@@ -840,7 +907,7 @@ public struct GeminiStatusProbe: Sendable {
         return OAuthClientCredentials(clientId: clientId, clientSecret: clientSecret)
     }
 
-    private static func refreshAccessToken(
+    static func refreshAccessToken(
         refreshToken: String,
         timeout: TimeInterval,
         homeDirectory: String,
@@ -919,7 +986,7 @@ public struct GeminiStatusProbe: Sendable {
         try updatedData.write(to: credsURL, options: .atomic)
     }
 
-    private static func loadCredentials(homeDirectory: String) throws -> OAuthCredentials {
+    static func loadCredentials(homeDirectory: String) throws -> OAuthCredentials {
         let credsURL = URL(fileURLWithPath: homeDirectory + Self.credentialsPath)
 
         guard FileManager.default.fileExists(atPath: credsURL.path) else {
@@ -1069,7 +1136,9 @@ public struct GeminiStatusProbe: Sendable {
             return "Resets in \(minutes)m"
         }
     }
+}
 
+extension GeminiStatusProbe {
     // MARK: - Legacy CLI parsing (kept for fallback)
 
     public static func parse(text: String) throws -> GeminiStatusSnapshot {

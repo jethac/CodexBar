@@ -54,7 +54,9 @@ public struct CostUsageFetcher: Sendable {
         piScannerOptions overridePiScannerOptions: PiSessionCostScanner
             .Options? = nil) async throws -> CostUsageTokenSnapshot
     {
-        guard provider == .codex || provider == .claude || provider == .vertexai || provider == .bedrock else {
+        guard provider == .codex || provider == .claude || provider == .gemini || provider == .vertexai || provider ==
+            .bedrock
+        else {
             throw CostUsageError.unsupportedProvider(provider)
         }
 
@@ -78,6 +80,13 @@ public struct CostUsageFetcher: Sendable {
         {
             options.codexSessionsRoot = URL(fileURLWithPath: codexHomePath, isDirectory: true)
                 .appendingPathComponent("sessions", isDirectory: true)
+        }
+        if provider == .gemini,
+           options.geminiConfigRoot == nil,
+           let geminiConfigDir = environment["GEMINI_CONFIG_DIR"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !geminiConfigDir.isEmpty
+        {
+            options.geminiConfigRoot = URL(fileURLWithPath: geminiConfigDir, isDirectory: true)
         }
         if provider == .codex || provider == .claude {
             let pricingCacheRoot = options.cacheRoot

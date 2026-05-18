@@ -429,6 +429,54 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `gemini exposes manual API key field`() throws {
+        let suite = "ProviderSettingsDescriptorTests-gemini-api-key"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+
+        let context = ProviderSettingsContext(
+            provider: .gemini,
+            settings: settings,
+            store: store,
+            boolBinding: { keyPath in
+                Binding(
+                    get: { settings[keyPath: keyPath] },
+                    set: { settings[keyPath: keyPath] = $0 })
+            },
+            stringBinding: { keyPath in
+                Binding(
+                    get: { settings[keyPath: keyPath] },
+                    set: { settings[keyPath: keyPath] = $0 })
+            },
+            statusText: { _ in nil },
+            setStatusText: { _, _ in },
+            lastAppActiveRunAt: { _ in nil },
+            setLastAppActiveRunAt: { _, _ in },
+            requestConfirmation: { _ in },
+            runLoginFlow: {})
+
+        let implementation = GeminiProviderImplementation()
+        let fields = implementation.settingsFields(context: context)
+        let field = try #require(fields.first(where: { $0.id == "gemini-api-key" }))
+        #expect(field.title == "Gemini API key")
+        #expect(field.kind == .secure)
+        #expect(field.subtitle.contains("AI Studio"))
+
+        field.binding.wrappedValue = " AIza-manual-key \n"
+        #expect(settings.providerConfig(for: .gemini)?.sanitizedAPIKey == "AIza-manual-key")
+    }
+
+    @Test
     func `alibaba presentation follows store source label`() throws {
         let suite = "ProviderSettingsDescriptorTests-alibaba-presentation"
         let defaults = try #require(UserDefaults(suiteName: suite))
