@@ -6,7 +6,56 @@
 GET /dashboard/v1/snapshot
 ```
 
-The endpoint is available from the foreground HTTP server started by `codexbar serve`. The default bind host remains `127.0.0.1`. Serving on a non-loopback host requires `--dashboard-token`, and data routes require `Authorization: Bearer YOUR_TOKEN` when a token is configured. `/health` remains unauthenticated.
+The endpoint is available from the foreground HTTP server started by `codexbar serve`. The default bind host remains `127.0.0.1`. Serving on a non-loopback host requires `--dashboard-token` or `--dashboard-pairing`, and data routes require `Authorization: Bearer YOUR_TOKEN` when a token is configured. `/health` remains unauthenticated.
+
+## Pairing
+
+For keyboard-limited dashboard clients, start the server with:
+
+```text
+codexbar serve --host 0.0.0.0 --dashboard-pairing
+```
+
+The server prints a short pairing code. Clients can discover the challenge with:
+
+```text
+GET /dashboard/v1/pairing
+```
+
+Example response:
+
+```json
+{
+  "schemaVersion": 1,
+  "service": "codexbar-dashboard",
+  "auth": {
+    "type": "choice",
+    "pairingId": "9F7A...",
+    "choices": ["184", "672", "903"],
+    "expiresInSeconds": 0
+  }
+}
+```
+
+`expiresInSeconds: 0` means the pairing code is valid for the lifetime of the foreground `codexbar serve` process.
+
+The client should show the three choices. The user selects the value that matches the server-shown code, then the client claims a generated bearer token:
+
+```text
+GET /dashboard/v1/pairing/claim?pairingId=9F7A...&choice=672
+```
+
+Successful claims return:
+
+```json
+{
+  "schemaVersion": 1,
+  "token": "generated-bearer-token",
+  "endpoint": "/dashboard/v1/snapshot"
+}
+```
+
+Persist the token client-side and use it as `Authorization: Bearer generated-bearer-token` for snapshot requests.
 
 Identity exposure is controlled with:
 

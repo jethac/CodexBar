@@ -72,6 +72,16 @@ struct CLIServeRouterTests {
                 method: "GET",
                 path: "/dashboard/v1/snapshot",
                 queryItems: [:]) == .dashboardSnapshot)
+        #expect(
+            try CLIServeRouter.route(
+                method: "GET",
+                path: "/dashboard/v1/pairing",
+                queryItems: [:]) == .dashboardPairing)
+        #expect(
+            try CLIServeRouter.route(
+                method: "GET",
+                path: "/dashboard/v1/pairing/claim",
+                queryItems: [:]) == .dashboardPairingClaim)
     }
 
     @Test
@@ -153,6 +163,14 @@ struct CLIServeRouterTests {
             positional: [],
             options: ["dashboardToken": [" "]],
             flags: [])) == nil)
+        #expect(!CodexBarCLI.decodeDashboardPairingEnabled(from: ParsedValues(
+            positional: [],
+            options: [:],
+            flags: [])))
+        #expect(CodexBarCLI.decodeDashboardPairingEnabled(from: ParsedValues(
+            positional: [],
+            options: [:],
+            flags: ["dashboardPairing"])))
         #expect(CodexBarCLI.decodeDashboardIdentity(from: ParsedValues(
             positional: [],
             options: [:],
@@ -217,6 +235,34 @@ struct CLIServeRouterTests {
             path: "/dashboard/v1/snapshot",
             queryItems: [:],
             headers: ["authorization": "Bearer wrong"])))
+    }
+
+    @Test
+    func `serve pairing exposes choices and authorizes claimed token`() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let pairing = CLIServePairing(now: { now })
+
+        let discovery = pairing.discoveryPayload()
+        #expect(discovery.service == "codexbar-dashboard")
+        #expect(discovery.auth.type == "choice")
+        #expect(discovery.auth.pairingId == pairing.challenge.id)
+        #expect(discovery.auth.choices.count == 3)
+        #expect(discovery.auth.choices.contains(pairing.challenge.code))
+        #expect(discovery.auth.expiresInSeconds == 0)
+
+        #expect(pairing.claimPayload(pairingID: pairing.challenge.id, choice: "000") == nil)
+        let claim = pairing.claimPayload(pairingID: pairing.challenge.id, choice: pairing.challenge.code)
+        #expect(claim?.endpoint == "/dashboard/v1/snapshot")
+        #expect(claim?.token == pairing.challenge.token)
+
+        let request = CLILocalHTTPRequest(
+            method: "GET",
+            target: "/dashboard/v1/snapshot",
+            host: "localhost",
+            path: "/dashboard/v1/snapshot",
+            queryItems: [:],
+            headers: ["authorization": "Bearer \(pairing.challenge.token)"])
+        #expect(CLIServeAuth(dashboardToken: nil, pairing: pairing).authorizeDataRequest(request))
     }
 
     @Test
