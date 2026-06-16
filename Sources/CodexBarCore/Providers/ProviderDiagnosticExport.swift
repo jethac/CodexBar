@@ -120,6 +120,7 @@ public struct ProviderDiagnosticUsageSummary: Codable, Sendable {
         if snapshot.mistralUsage != nil { providerSpecificData.append("mistralUsage") }
         if snapshot.deepgramUsage != nil { providerSpecificData.append("deepgramUsage") }
         if snapshot.cursorRequests != nil { providerSpecificData.append("cursorRequests") }
+        if snapshot.googleCloudUsage != nil { providerSpecificData.append("googleCloudUsage") }
 
         self.updatedAt = snapshot.updatedAt
         self.windows = windows

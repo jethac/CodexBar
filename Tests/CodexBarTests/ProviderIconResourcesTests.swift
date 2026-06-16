@@ -21,6 +21,7 @@ struct ProviderIconResourcesTests {
             "opencodego",
             "alibaba",
             "gemini",
+            "googlecloud",
             "antigravity",
             "factory",
             "copilot",

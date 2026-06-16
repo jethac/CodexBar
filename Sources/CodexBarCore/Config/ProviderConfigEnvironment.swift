@@ -85,6 +85,8 @@ public enum ProviderConfigEnvironment {
         switch provider {
         case .openai:
             self.applyOpenAIOverrides(base: base, config: config)
+        case .googlecloud:
+            self.applyGoogleCloudOverrides(base: base, config: config)
         case .bedrock:
             self.applyBedrockOverrides(base: base, config: config)
         case .deepgram:
@@ -98,6 +100,42 @@ public enum ProviderConfigEnvironment {
         default:
             nil
         }
+    }
+
+    private static func applyGoogleCloudOverrides(
+        base: [String: String],
+        config: ProviderConfig?) -> [String: String]
+    {
+        guard let config else { return base }
+        var env = base
+        if let projectID = config.sanitizedWorkspaceID {
+            env[GoogleCloudSettingsReader.billingProjectIDKey] = projectID
+        }
+        if let datasetID = config.sanitizedRegion {
+            env[GoogleCloudSettingsReader.billingDatasetIDKey] = datasetID
+        }
+        if let tableID = config.sanitizedEnterpriseHost {
+            env[GoogleCloudSettingsReader.billingTableIDKey] = tableID
+        }
+        if let serviceAccountPath = config.sanitizedAPIKey {
+            env[GoogleCloudSettingsReader.serviceAccountJSONPathKey] = serviceAccountPath
+        }
+        if let budget = config.sanitizedCookieHeader {
+            env[GoogleCloudSettingsReader.budgetKey] = budget
+        }
+        if let monitoringProjectID = config.sanitizedSecretKey {
+            env[GoogleCloudSettingsReader.monitoringProjectIDKey] = monitoringProjectID
+        }
+        if let labelKey = config.sanitizedAWSProfile {
+            env[GoogleCloudSettingsReader.costLabelKey] = labelKey
+        }
+        if let topN = config.sanitizedAWSAuthMode {
+            env[GoogleCloudSettingsReader.topRowCountKey] = topN
+        }
+        if let monitoringEnabled = config.extrasEnabled {
+            env[GoogleCloudSettingsReader.monitoringEnabledKey] = monitoringEnabled ? "true" : "false"
+        }
+        return env
     }
 
     private static func directAPIKeyEnvironmentKey(for provider: UsageProvider) -> String? {

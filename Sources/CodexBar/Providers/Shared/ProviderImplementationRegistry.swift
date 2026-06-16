@@ -24,6 +24,7 @@ enum ProviderImplementationRegistry {
         case .alibabatokenplan: AlibabaTokenPlanProviderImplementation()
         case .factory: FactoryProviderImplementation()
         case .gemini: GeminiProviderImplementation()
+        case .googlecloud: GoogleCloudProviderImplementation()
         case .antigravity: AntigravityProviderImplementation()
         case .copilot: CopilotProviderImplementation()
         case .devin: DevinProviderImplementation()

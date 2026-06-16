@@ -35,6 +35,7 @@ public enum CodexBarConfigValidator {
         .opencodego,
         .devin,
         .deepgram,
+        .googlecloud,
     ]
 
     public static func validate(_ config: CodexBarConfig) -> [CodexBarConfigIssue] {
@@ -112,7 +113,8 @@ public enum CodexBarConfigValidator {
 
         if let cookieHeader = entry.cookieHeader,
            !cookieHeader.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-           !supportsWeb
+           !supportsWeb,
+           provider != .googlecloud
         {
             issues.append(CodexBarConfigIssue(
                 severity: .warning,
@@ -178,7 +180,8 @@ public enum CodexBarConfigValidator {
     private static func validateSecretKey(_ entry: ProviderConfig, issues: inout [CodexBarConfigIssue]) {
         guard let secretKey = entry.secretKey,
               !secretKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              entry.id != .bedrock
+              entry.id != .bedrock,
+              entry.id != .googlecloud
         else {
             return
         }
@@ -208,7 +211,7 @@ public enum CodexBarConfigValidator {
 
     private static func providerSupportsEnterpriseHost(_ provider: UsageProvider) -> Bool {
         switch provider {
-        case .azureopenai, .copilot, .kimi, .llmproxy, .litellm:
+        case .azureopenai, .copilot, .kimi, .llmproxy, .litellm, .googlecloud:
             true
         default:
             false
@@ -252,7 +255,7 @@ public enum CodexBarConfigValidator {
                 isValid: MoonshotRegion(rawValue: region) != nil,
                 displayName: "Moonshot",
                 issues: &issues)
-        case .bedrock:
+        case .bedrock, .googlecloud:
             break
         default:
             issues.append(CodexBarConfigIssue(

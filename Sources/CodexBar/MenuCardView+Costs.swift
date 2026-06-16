@@ -201,11 +201,13 @@ extension UsageMenuCardView.Model {
                 percentLine: nil)
         }
 
-        if provider == .openai || provider == .claude || provider == .litellm, cost.limit <= 0 {
+        if provider == .openai || provider == .claude || provider == .litellm || provider == .googlecloud,
+           cost.limit <= 0
+        {
             let spend = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
             let periodLabel = Self.localizedPeriodLabel(cost.period ?? "Last 30 days")
             return ProviderCostSection(
-                title: L("API spend"),
+                title: provider == .googlecloud ? L("Cloud spend") : L("API spend"),
                 percentUsed: nil,
                 spendLine: "\(periodLabel): \(spend)",
                 percentLine: nil)

@@ -14,6 +14,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case alibabatokenplan
     case factory
     case gemini
+    case googlecloud
     case antigravity
     case copilot
     case devin
@@ -68,6 +69,7 @@ public enum IconStyle: String, Sendable, CaseIterable {
     case minimax
     case manus
     case gemini
+    case googlecloud
     case antigravity
     case cursor
     case opencode

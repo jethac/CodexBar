@@ -64,6 +64,7 @@ public enum ProviderDescriptorRegistry {
         .alibabatokenplan: AlibabaTokenPlanProviderDescriptor.descriptor,
         .factory: FactoryProviderDescriptor.descriptor,
         .gemini: GeminiProviderDescriptor.descriptor,
+        .googlecloud: GoogleCloudProviderDescriptor.descriptor,
         .antigravity: AntigravityProviderDescriptor.descriptor,
         .copilot: CopilotProviderDescriptor.descriptor,
         .devin: DevinProviderDescriptor.descriptor,
