@@ -2,6 +2,7 @@ import AppKit
 import CodexBarCore
 import Foundation
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct GoogleCloudProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .googlecloud
@@ -81,12 +82,12 @@ struct GoogleCloudProviderImplementation: ProviderImplementation {
                 onActivate: nil),
             ProviderSettingsFieldDescriptor(
                 id: "googlecloud-service-account-json",
-                title: "Service account JSON path",
-                subtitle: "Path only; JSON contents are not stored. GOOGLE_APPLICATION_CREDENTIALS is also supported.",
-                kind: .secure,
+                title: "Service account JSON",
+                subtitle: "Choose a service account JSON file. Only the path is stored; GOOGLE_APPLICATION_CREDENTIALS is also supported.",
+                kind: .plain,
                 placeholder: "~/.config/gcloud/codexbar-billing.json",
                 binding: context.stringBinding(\.googleCloudServiceAccountJSONPath),
-                actions: [],
+                actions: [Self.serviceAccountJSONPickerAction(context: context)],
                 isVisible: nil,
                 onActivate: nil),
             ProviderSettingsFieldDescriptor(
@@ -188,6 +189,44 @@ struct GoogleCloudProviderImplementation: ProviderImplementation {
             parts.append(serviceID)
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    @MainActor
+    private static func serviceAccountJSONPickerAction(
+        context: ProviderSettingsContext)
+        -> ProviderSettingsActionDescriptor
+    {
+        ProviderSettingsActionDescriptor(
+            id: "googlecloud-choose-service-account-json",
+            title: "Choose JSON...",
+            style: .bordered,
+            isVisible: nil,
+            perform: {
+                let panel = NSOpenPanel()
+                panel.title = "Choose Google Cloud service account JSON"
+                panel.prompt = "Choose"
+                panel.canChooseFiles = true
+                panel.canChooseDirectories = false
+                panel.allowsMultipleSelection = false
+                panel.resolvesAliases = true
+                if #available(macOS 11.0, *) {
+                    panel.allowedContentTypes = [.json]
+                } else {
+                    panel.allowedFileTypes = ["json"]
+                }
+                let existingPath = context.settings.googleCloudServiceAccountJSONPath
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                if !existingPath.isEmpty {
+                    panel.directoryURL = URL(fileURLWithPath: existingPath)
+                        .deletingLastPathComponent()
+                }
+                guard panel.runModal() == .OK,
+                      let url = panel.url
+                else {
+                    return
+                }
+                context.settings.googleCloudServiceAccountJSONPath = url.path
+            })
     }
 
     @MainActor

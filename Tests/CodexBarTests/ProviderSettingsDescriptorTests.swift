@@ -167,6 +167,26 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `google cloud service account field has json picker`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-googlecloud-picker")
+        let context = fixture.settingsContext(provider: .googlecloud)
+
+        let fields = GoogleCloudProviderImplementation().settingsFields(context: context)
+        let field = try #require(fields.first { $0.id == "googlecloud-service-account-json" })
+        let isPlain: Bool
+        if case .plain = field.kind {
+            isPlain = true
+        } else {
+            isPlain = false
+        }
+
+        #expect(field.title == "Service account JSON")
+        #expect(isPlain)
+        #expect(field.actions.map(\.id) == ["googlecloud-choose-service-account-json"])
+        #expect(field.actions.first?.title == "Choose JSON...")
+    }
+
+    @Test
     func `copilot budget secondary picker appears before cookie picker`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-copilot-budget-pickers")
         fixture.settings.copilotBudgetExtrasEnabled = true
