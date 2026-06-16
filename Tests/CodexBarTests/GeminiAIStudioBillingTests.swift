@@ -103,6 +103,68 @@ struct GeminiAIStudioBillingTests {
     }
 
     @Test
+    func `scrapes AI Studio billing and usage page text`() async throws {
+        let fetcher = GeminiAIStudioScrapeFetcher(pageTextLoader: { url in
+            if url.absoluteString.contains("billing") {
+                return """
+                Available credits
+                $42.17
+                Billing plan
+                Prepay
+                """
+            }
+            #expect(url.absoluteString.contains("usage"))
+            return """
+            API requests
+            1,234
+            Input tokens
+            5,678
+            Output tokens
+            9,012
+            """
+        }, contextResolver: nil)
+
+        let snapshot = try await fetcher.scrape(apiKey: "saved-config-key")
+
+        #expect(snapshot.billing.plan == .prepay)
+        #expect(snapshot.billing.availableCredits == 42.17)
+        #expect(snapshot.usage.requestCount == 1234)
+        #expect(snapshot.usage.inputTokenCount == 5678)
+        #expect(snapshot.usage.outputTokenCount == 9012)
+    }
+
+    @Test
+    func `fetches AI Studio request count from Cloud Monitoring`() async throws {
+        let fetcher = GeminiAIStudioBillingFetcher(
+            accessTokenProvider: { "oauth-token" },
+            dataLoader: { request in
+                let url = try #require(request.url)
+                #expect(url.absoluteString.contains(
+                    "monitoring.googleapis.com/v3/projects/gen-lang-client-0530062602/timeSeries"))
+                #expect(url.absoluteString.contains("serviceruntime.googleapis.com"))
+                #expect(url.absoluteString.contains("generativelanguage.googleapis.com"))
+                #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer oauth-token")
+                let body = """
+                {
+                  "timeSeries": [
+                    { "points": [ { "value": { "int64Value": "41" } } ] },
+                    { "points": [ { "value": { "doubleValue": 1.7 } } ] }
+                  ]
+                }
+                """
+                return (Data(body.utf8), HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: nil)!)
+            })
+
+        let usage = try await fetcher.fetchDailyUsage(projectID: "gen-lang-client-0530062602")
+
+        #expect(usage.requestCount == 43)
+    }
+
+    @Test
     func `parses AI Studio prepay billing page text`() {
         let snapshot = GeminiAIStudioBillingParser.parseBillingPageText("""
         Available credits

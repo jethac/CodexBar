@@ -170,6 +170,43 @@ final class StatusMenuTokenAccountSwitcherTests: XCTestCase {
         XCTAssertEqual(self.representedIDs(in: menu).filter { $0.hasPrefix("menuCard") }, ["menuCard"])
     }
 
+    func test_geminiTokenAccountsShowStackedCardsInsteadOfSwitcher() {
+        self.disableMenuCardsForTesting()
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = false
+        settings.multiAccountMenuLayout = .segmented
+        self.enableOnly(.gemini, settings)
+        settings.addTokenAccount(provider: .gemini, label: "Project A", token: "gemini-a")
+        settings.addTokenAccount(provider: .gemini, label: "Project B", token: "gemini-b")
+        let accounts = settings.tokenAccounts(for: .gemini)
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        store.accountSnapshots[.gemini] = accounts.enumerated().map { index, account in
+            TokenAccountUsageSnapshot(
+                account: account,
+                snapshot: self.snapshot(percent: Double(10 + index)),
+                error: nil,
+                sourceLabel: "Gemini API Key")
+        }
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+        defer { controller.releaseStatusItemsForTesting() }
+
+        let menu = controller.makeMenu(for: .gemini)
+        controller.menuWillOpen(menu)
+
+        XCTAssertNil(menu.items.compactMap { $0.view as? TokenAccountSwitcherView }.first)
+        XCTAssertEqual(self.representedIDs(in: menu).filter { $0.hasPrefix("menuCard") }, ["menuCard-0", "menuCard-1"])
+    }
+
     func test_multiAccountStackedLayoutShowsCopilotCards() {
         self.disableMenuCardsForTesting()
         let settings = self.makeSettings()

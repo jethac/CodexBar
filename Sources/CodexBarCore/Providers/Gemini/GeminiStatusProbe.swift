@@ -175,6 +175,10 @@ public struct GeminiStatusProbe: Sendable {
         homeDirectory: String = NSHomeDirectory(),
         environment: [String: String] = ProcessInfo.processInfo.environment) -> GeminiAuthType
     {
+        if self.currentAPIKey(environment: environment) != nil {
+            return .apiKey
+        }
+
         let settingsURL = URL(fileURLWithPath: homeDirectory + Self.settingsPath)
 
         if let data = try? Data(contentsOf: settingsURL),

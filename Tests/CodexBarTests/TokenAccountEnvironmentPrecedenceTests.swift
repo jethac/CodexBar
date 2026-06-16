@@ -40,6 +40,45 @@ struct TokenAccountEnvironmentPrecedenceTests {
     }
 
     @Test
+    func `Gemini ignores active index but explicit token account override injects API key`() {
+        let settings = Self.makeSettingsStore(suite: "TokenAccountEnvironmentPrecedenceTests-gemini-app")
+        settings.geminiAPIKey = "config-gemini-key"
+        settings.addTokenAccount(provider: .gemini, label: "Project A", token: "account-gemini-key-a")
+        settings.addTokenAccount(provider: .gemini, label: "Project B", token: "account-gemini-key-b")
+        settings.setActiveTokenAccountIndex(1, for: .gemini)
+        let account = settings.tokenAccounts(for: .gemini)[0]
+
+        let env = ProviderRegistry.makeEnvironment(
+            base: ["GEMINI_API_KEY": "ambient-gemini-key"],
+            provider: .gemini,
+            settings: settings,
+            tokenOverride: nil)
+
+        #expect(env["GEMINI_API_KEY"] == "config-gemini-key")
+        #expect(GeminiStatusProbe.currentAuthType(environment: env) == .apiKey)
+        #expect(GeminiStatusProbe.currentAPIKey(environment: env) == "config-gemini-key")
+
+        let overrideEnv = ProviderRegistry.makeEnvironment(
+            base: ["GEMINI_API_KEY": "ambient-gemini-key"],
+            provider: .gemini,
+            settings: settings,
+            tokenOverride: TokenAccountOverride(provider: .gemini, account: account))
+
+        #expect(overrideEnv["GEMINI_API_KEY"] == "account-gemini-key-a")
+        #expect(GeminiStatusProbe.currentAPIKey(environment: overrideEnv) == "account-gemini-key-a")
+    }
+
+    @Test
+    func `Gemini token accounts are fetched without stacked multi account layout`() {
+        let settings = Self.makeSettingsStore(suite: "TokenAccountEnvironmentPrecedenceTests-gemini-fetch-all")
+        settings.multiAccountMenuLayout = .segmented
+        settings.addTokenAccount(provider: .gemini, label: "Project A", token: "account-gemini-key-a")
+        let store = Self.makeUsageStore(settings: settings)
+
+        #expect(store.shouldFetchAllTokenAccounts(provider: .gemini, accounts: settings.tokenAccounts(for: .gemini)))
+    }
+
+    @Test
     func `token account environment overrides config API key in CLI environment builder`() throws {
         let config = CodexBarConfig(
             providers: [
@@ -606,6 +645,32 @@ struct TokenAccountEnvironmentPrecedenceTests {
         Self.expectSnapshotFieldsPreserved(before: snapshot, after: labeled)
         #expect(labeled.identity?.providerID == .zai)
         #expect(labeled.identity?.accountEmail == "Team Account")
+    }
+
+    @Test
+    func `Gemini account label in app overrides scraped key identity`() {
+        let settings = Self.makeSettingsStore(suite: "TokenAccountEnvironmentPrecedenceTests-gemini-label-app")
+        let store = Self.makeUsageStore(settings: settings)
+        let snapshot = Self.makeSnapshotWithAllFields(provider: .gemini)
+            .withIdentity(ProviderIdentitySnapshot(
+                providerID: .gemini,
+                accountEmail: "API key …abcd",
+                accountOrganization: "Prepay · $42.17 credits",
+                loginMethod: "API key · AI Studio"))
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "Personal AI Studio",
+            token: "account-token",
+            addedAt: 0,
+            lastUsed: nil)
+
+        let labeled = store.applyAccountLabel(snapshot, provider: .gemini, account: account)
+
+        Self.expectSnapshotFieldsPreserved(before: snapshot, after: labeled)
+        #expect(labeled.identity?.providerID == .gemini)
+        #expect(labeled.identity?.accountEmail == "Personal AI Studio")
+        #expect(labeled.identity?.accountOrganization == "Prepay · $42.17 credits")
+        #expect(labeled.identity?.loginMethod == "API key · AI Studio")
     }
 
     @Test

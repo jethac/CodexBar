@@ -798,7 +798,7 @@ extension UsageMenuCardView.Model {
 
         return UsageMenuCardView.Model(
             provider: input.provider,
-            providerName: input.metadata.displayName,
+            providerName: Self.providerName(input: input),
             email: redacted.email,
             subtitleText: redacted.subtitleText,
             subtitleStyle: subtitle.style,
@@ -818,6 +818,15 @@ extension UsageMenuCardView.Model {
     }
 
     private static func usageNotes(input: Input) -> [String] {
+        if input.provider == .gemini,
+           input.snapshot?.loginMethod(for: .gemini)?.localizedCaseInsensitiveContains("API key") == true,
+           let billingSummary = input.snapshot?.accountOrganization(for: .gemini)?
+               .trimmingCharacters(in: .whitespacesAndNewlines),
+               !billingSummary.isEmpty
+        {
+            return [billingSummary]
+        }
+
         if input.provider == .kiro {
             return kiroUsageNotes(input: input)
         }
@@ -884,21 +893,6 @@ extension UsageMenuCardView.Model {
 
     private static func openRouterCurrencyString(_ value: Double) -> String {
         String(format: "$%.2f", value)
-    }
-
-    private static func email(
-        for provider: UsageProvider,
-        snapshot: UsageSnapshot?,
-        account: AccountInfo,
-        metadata: ProviderMetadata) -> String
-    {
-        if let email = snapshot?.accountEmail(for: provider), !email.isEmpty { return email }
-        if metadata.usesAccountFallback,
-           let email = account.email, !email.isEmpty
-        {
-            return email
-        }
-        return ""
     }
 
     private static func plan(

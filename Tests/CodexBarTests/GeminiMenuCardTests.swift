@@ -54,4 +54,82 @@ struct GeminiMenuCardTests {
 
         #expect(model.metrics.map(\.title) == ["Pro", "Flash", "Flash Lite"])
     }
+
+    @Test
+    func `gemini API key card uses key label as title without duplicate email`() throws {
+        let now = Date()
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            providerCost: nil,
+            updatedAt: now,
+            identity: ProviderIdentitySnapshot(
+                providerID: .gemini,
+                accountEmail: "Personal AI Studio",
+                accountOrganization: "Prepay · $42.17 credits",
+                loginMethod: "API key · AI Studio"))
+        let metadata = try #require(ProviderDefaults.metadata[.gemini])
+
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .gemini,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            now: now))
+
+        #expect(model.providerName == "Personal AI Studio")
+        #expect(model.email.isEmpty)
+    }
+
+    @Test
+    func `gemini API key card does not show unsupported usage placeholder when billing metadata is present`() throws {
+        let now = Date()
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            providerCost: nil,
+            updatedAt: now,
+            identity: ProviderIdentitySnapshot(
+                providerID: .gemini,
+                accountEmail: "Personal AI Studio",
+                accountOrganization: "Prepay · $42.17 credits",
+                loginMethod: "API key · AI Studio"))
+        let metadata = try #require(ProviderDefaults.metadata[.gemini])
+
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .gemini,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            now: now))
+
+        #expect(model.placeholder != "AI Studio API-key usage is not exposed")
+        #expect(model.usageNotes == ["Prepay · $42.17 credits"])
+    }
 }

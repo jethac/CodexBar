@@ -9,6 +9,14 @@ extension TokenAccountSupportCatalog {
             injection: .environment(key: OpenAIAPISettingsReader.adminAPIKeyEnvironmentKey),
             requiresManualCookieSource: false,
             cookieName: nil),
+        .gemini: TokenAccountSupport(
+            title: "Gemini API keys",
+            subtitle: "Store multiple AI Studio/Gemini API keys. All listed keys are selected; " +
+                "CodexBar does not use a single active-key switcher for Gemini.",
+            placeholder: "AIza...",
+            injection: .environment(key: "GEMINI_API_KEY"),
+            requiresManualCookieSource: false,
+            cookieName: nil),
         .claude: TokenAccountSupport(
             title: "Claude credentials",
             subtitle: "Store Claude sessionKey cookies, OAuth tokens, or Anthropic Admin API keys.",

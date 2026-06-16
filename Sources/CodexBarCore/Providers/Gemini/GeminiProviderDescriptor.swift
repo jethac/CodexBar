@@ -4,6 +4,8 @@ import Foundation
 @ProviderDescriptorRegistration
 @ProviderDescriptorDefinition
 public enum GeminiProviderDescriptor {
+    public static let integrationVersion = "0.44.0"
+
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .gemini,
@@ -40,42 +42,76 @@ public enum GeminiProviderDescriptor {
                 })),
             cli: ProviderCLIConfig(
                 name: "gemini",
-                versionDetector: { _ in ProviderVersionDetector.geminiVersion() }))
+                versionDetector: { _ in self.integrationVersion }))
     }
 }
 
 struct GeminiAPIKeyAIStudioFetchStrategy: ProviderFetchStrategy {
     static let sourceLabel = "api-key-aistudio"
+    typealias ScrapeResolver = @Sendable (String) async throws -> GeminiAIStudioScrapeSnapshot
 
     let id: String = "gemini.api-key.aistudio"
     let kind: ProviderFetchKind = .apiToken
+    private let scrapeResolver: ScrapeResolver
+
+    init(scrapeResolver: @escaping ScrapeResolver = { apiKey in
+        try await GeminiAIStudioScrapeFetcher().scrape(apiKey: apiKey)
+    }) {
+        self.scrapeResolver = scrapeResolver
+    }
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        GeminiStatusProbe.currentAuthType(environment: context.env) == .apiKey
-            && GeminiStatusProbe.currentAPIKey(environment: context.env) != nil
+        GeminiStatusProbe.currentAPIKey(environment: context.env) != nil
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         guard let apiKey = GeminiStatusProbe.currentAPIKey(environment: context.env) else {
             throw GeminiStatusProbeError.unsupportedAuthType("API key")
         }
+        let scrape = try await self.scrapeResolver(apiKey)
 
-        let aiStudioContext = try await GeminiAIStudioBillingFetcher().resolveContext(apiKey: apiKey)
-        let billingStatus = aiStudioContext.billingEnabled ? "billing enabled" : "free / billing disabled"
         let usage = UsageSnapshot(
             primary: nil,
             secondary: nil,
+            providerCost: Self.providerCost(from: scrape.usage),
             updatedAt: Date(),
             identity: ProviderIdentitySnapshot(
                 providerID: .gemini,
                 accountEmail: nil,
-                accountOrganization: aiStudioContext.billingAccountID,
-                loginMethod: "API key · \(billingStatus)"))
+                accountOrganization: Self.billingSummary(from: scrape.billing),
+                loginMethod: "API key · AI Studio"))
         return self.makeResult(usage: usage, sourceLabel: Self.sourceLabel)
     }
 
     func shouldFallback(on _: Error, context: ProviderFetchContext) -> Bool {
-        GeminiStatusProbe.currentAuthType(environment: context.env) != .apiKey
+        GeminiStatusProbe.currentAPIKey(environment: context.env) == nil
+    }
+
+    private static func billingSummary(from billing: GeminiAIStudioBillingSnapshot) -> String? {
+        let plan = billing.plan.rawValue.capitalized
+        if let availableCredits = billing.availableCredits {
+            return "\(plan) · $\(Self.amountString(availableCredits)) credits"
+        }
+        if let spend = billing.monthToDateSpend, let cap = billing.spendCap {
+            return "\(plan) · $\(Self.amountString(spend)) / $\(Self.amountString(cap))"
+        }
+        if billing.plan != .unknown { return plan }
+        return nil
+    }
+
+    private static func providerCost(from usage: GeminiAIStudioUsageSnapshot) -> ProviderCostSnapshot? {
+        guard let requestCount = usage.requestCount else { return nil }
+        return ProviderCostSnapshot(
+            used: Double(requestCount),
+            limit: max(Double(requestCount), 1),
+            currencyCode: "Requests",
+            period: "Today",
+            resetsAt: nil,
+            updatedAt: Date())
+    }
+
+    private static func amountString(_ value: Double) -> String {
+        String(format: "%.2f", value)
     }
 }
 

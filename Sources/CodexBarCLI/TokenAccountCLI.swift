@@ -357,7 +357,7 @@ struct TokenAccountCLIContext {
         guard !label.isEmpty else { return snapshot }
         let existing = snapshot.identity(for: provider)
         let email = existing?.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolvedEmail = (email?.isEmpty ?? true) ? label : email
+        let resolvedEmail = provider == .gemini ? label : ((email?.isEmpty ?? true) ? label : email)
         let identity = ProviderIdentitySnapshot(
             providerID: provider,
             accountEmail: resolvedEmail,

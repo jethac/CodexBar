@@ -55,6 +55,7 @@ extension UsageStore {
 
     func shouldFetchAllTokenAccounts(provider: UsageProvider, accounts: [ProviderTokenAccount]) -> Bool {
         guard TokenAccountSupportCatalog.support(for: provider) != nil else { return false }
+        if provider == .gemini { return !accounts.isEmpty }
         return self.settings.multiAccountMenuLayout == .stacked && accounts.count > 1
     }
 
@@ -628,7 +629,7 @@ extension UsageStore {
         guard !label.isEmpty else { return snapshot }
         let existing = snapshot.identity(for: provider)
         let email = existing?.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolvedEmail = (email?.isEmpty ?? true) ? label : email
+        let resolvedEmail = provider == .gemini ? label : ((email?.isEmpty ?? true) ? label : email)
         let identity = ProviderIdentitySnapshot(
             providerID: provider,
             accountEmail: resolvedEmail,

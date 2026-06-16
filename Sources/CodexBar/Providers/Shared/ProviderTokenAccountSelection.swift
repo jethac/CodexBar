@@ -14,6 +14,7 @@ enum ProviderTokenAccountSelection {
         override: TokenAccountOverride?) -> ProviderTokenAccount?
     {
         if let override, override.provider == provider { return override.account }
+        if provider == .gemini { return nil }
         return settings.selectedTokenAccount(for: provider)
     }
 }

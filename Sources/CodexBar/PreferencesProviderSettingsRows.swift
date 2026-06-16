@@ -283,26 +283,39 @@ struct ProviderSettingsTokenAccountsRowView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(accounts.enumerated()), id: \.element.id) { index, account in
                         HStack(alignment: .center, spacing: 10) {
-                            Button {
-                                self.descriptor.setActiveIndex(index)
-                            } label: {
+                            if self.descriptor.provider == .gemini {
                                 HStack(alignment: .center, spacing: 8) {
-                                    Image(systemName: self.isActive(index: index, accountCount: accounts.count) ?
-                                        "checkmark.circle.fill" : "circle")
+                                    Image(systemName: "checkmark.square.fill")
                                         .font(.system(size: 13, weight: .medium))
-                                        .foregroundStyle(self.isActive(index: index, accountCount: accounts.count) ?
-                                            Color.accentColor : Color.secondary)
+                                        .foregroundStyle(Color.accentColor)
                                     Text(account.displayName)
-                                        .font(
-                                            .footnote.weight(
-                                                self.isActive(index: index, accountCount: accounts.count) ?
-                                                    .semibold : .regular))
+                                        .font(.footnote.weight(.semibold))
                                         .foregroundStyle(.primary)
                                     Spacer(minLength: 0)
                                 }
                                 .contentShape(Rectangle())
+                            } else {
+                                Button {
+                                    self.descriptor.setActiveIndex(index)
+                                } label: {
+                                    HStack(alignment: .center, spacing: 8) {
+                                        Image(systemName: self.isActive(index: index, accountCount: accounts.count) ?
+                                            "checkmark.circle.fill" : "circle")
+                                            .font(.system(size: 13, weight: .medium))
+                                            .foregroundStyle(self.isActive(index: index, accountCount: accounts.count) ?
+                                                Color.accentColor : Color.secondary)
+                                        Text(account.displayName)
+                                            .font(
+                                                .footnote.weight(
+                                                    self.isActive(index: index, accountCount: accounts.count) ?
+                                                        .semibold : .regular))
+                                            .foregroundStyle(.primary)
+                                        Spacer(minLength: 0)
+                                    }
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
 
                             Button("Remove") {
                                 self.descriptor.removeAccount(account.id)

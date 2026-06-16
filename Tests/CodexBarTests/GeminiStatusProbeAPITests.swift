@@ -31,6 +31,17 @@ struct GeminiStatusProbeAPITests {
     }
 
     @Test
+    func `Gemini API key environment wins over legacy CLI OAuth settings`() throws {
+        let env = try GeminiTestEnvironment()
+        defer { env.cleanup() }
+        try env.writeSettings(authType: "oauth-personal")
+
+        #expect(GeminiStatusProbe.currentAuthType(
+            homeDirectory: env.homeURL.path,
+            environment: ["GEMINI_API_KEY": "saved-config-key"]) == .apiKey)
+    }
+
+    @Test
     func `maps Gemini CLI environment auth patterns when settings are unset`() throws {
         let env = try GeminiTestEnvironment()
         defer { env.cleanup() }

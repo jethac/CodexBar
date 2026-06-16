@@ -429,8 +429,8 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
-    func `gemini exposes manual API key field`() throws {
-        let suite = "ProviderSettingsDescriptorTests-gemini-api-key"
+    func `gemini exposes multiple API key token account table instead of single field`() throws {
+        let suite = "ProviderSettingsDescriptorTests-gemini-api-keys"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
         let configStore = testConfigStore(suiteName: suite)
@@ -466,14 +466,12 @@ struct ProviderSettingsDescriptorTests {
             runLoginFlow: {})
 
         let implementation = GeminiProviderImplementation()
-        let fields = implementation.settingsFields(context: context)
-        let field = try #require(fields.first(where: { $0.id == "gemini-api-key" }))
-        #expect(field.title == "Gemini API key")
-        #expect(field.kind == .secure)
-        #expect(field.subtitle.contains("AI Studio"))
+        #expect(implementation.settingsFields(context: context).isEmpty)
 
-        field.binding.wrappedValue = " AIza-manual-key \n"
-        #expect(settings.providerConfig(for: .gemini)?.sanitizedAPIKey == "AIza-manual-key")
+        let support = try #require(TokenAccountSupportCatalog.support(for: .gemini))
+        #expect(support.title == "Gemini API keys")
+        #expect(support.placeholder == "AIza...")
+        #expect(support.subtitle.localizedCaseInsensitiveContains("all listed keys"))
     }
 
     @Test

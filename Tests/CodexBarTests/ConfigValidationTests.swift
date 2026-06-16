@@ -34,9 +34,21 @@ struct ConfigValidationTests {
             accounts: [ProviderTokenAccount(id: UUID(), label: "a", token: "t", addedAt: 0, lastUsed: nil)],
             activeIndex: 0)
         var config = CodexBarConfig.makeDefault()
-        config.setProviderConfig(ProviderConfig(id: .gemini, tokenAccounts: accounts))
+        config.setProviderConfig(ProviderConfig(id: .moonshot, tokenAccounts: accounts))
         let issues = CodexBarConfigValidator.validate(config)
         #expect(issues.contains(where: { $0.code == "token_accounts_unused" }))
+    }
+
+    @Test
+    func `allows gemini token accounts`() {
+        let accounts = ProviderTokenAccountData(
+            version: 1,
+            accounts: [ProviderTokenAccount(id: UUID(), label: "a", token: "t", addedAt: 0, lastUsed: nil)],
+            activeIndex: 0)
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .gemini, tokenAccounts: accounts))
+        let issues = CodexBarConfigValidator.validate(config)
+        #expect(!issues.contains(where: { $0.code == "token_accounts_unused" && $0.provider == .gemini }))
     }
 
     @Test

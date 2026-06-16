@@ -163,6 +163,15 @@ extension UsageMenuCardView.Model {
                 percentLine: nil)
         }
 
+        if provider == .gemini, cost.currencyCode == "Requests", cost.limit <= 0 {
+            let periodLabel = cost.period ?? "Today"
+            return ProviderCostSection(
+                title: "API usage",
+                percentUsed: nil,
+                spendLine: "\(periodLabel): \(String(format: "%.0f", cost.used)) requests",
+                percentLine: nil)
+        }
+
         guard cost.limit > 0 else { return nil }
 
         let used: String

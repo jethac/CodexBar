@@ -5,9 +5,9 @@ extension StatusItemController {
     func tokenAccountMenuDisplay(for provider: UsageProvider) -> TokenAccountMenuDisplay? {
         guard TokenAccountSupportCatalog.support(for: provider) != nil else { return nil }
         let accounts = self.settings.tokenAccounts(for: provider)
-        guard accounts.count > 1 else { return nil }
+        guard provider == .gemini ? !accounts.isEmpty : accounts.count > 1 else { return nil }
         let activeIndex = self.settings.tokenAccountsData(for: provider)?.clampedActiveIndex() ?? 0
-        let showAll = self.settings.multiAccountMenuLayout == .stacked
+        let showAll = provider == .gemini || self.settings.multiAccountMenuLayout == .stacked
         let displayAccounts = showAll
             ? self.store.limitedTokenAccounts(accounts, selected: self.settings.selectedTokenAccount(for: provider))
             : accounts

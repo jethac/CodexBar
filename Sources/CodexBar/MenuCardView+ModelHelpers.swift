@@ -42,6 +42,39 @@ extension UsageMenuCardView.Model {
         UsageFormatter.resetLine(for: window, style: style, now: now)
     }
 
+    static func providerName(input: Input) -> String {
+        if input.provider == .gemini,
+           input.snapshot?.loginMethod(for: .gemini)?.localizedCaseInsensitiveContains("API key") == true,
+           let label = input.snapshot?.accountEmail(for: .gemini)?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !label.isEmpty
+        {
+            return label
+        }
+
+        return input.metadata.displayName
+    }
+
+    static func email(
+        for provider: UsageProvider,
+        snapshot: UsageSnapshot?,
+        account: AccountInfo,
+        metadata: ProviderMetadata) -> String
+    {
+        if provider == .gemini,
+           snapshot?.loginMethod(for: .gemini)?.localizedCaseInsensitiveContains("API key") == true
+        {
+            return ""
+        }
+
+        if let email = snapshot?.accountEmail(for: provider), !email.isEmpty { return email }
+        if metadata.usesAccountFallback,
+           let email = account.email, !email.isEmpty
+        {
+            return email
+        }
+        return ""
+    }
+
     static func placeholder(input: Input) -> String? {
         if self.shouldShowRateLimitsUnavailablePlaceholder(input: input) {
             return "Limits not available"
