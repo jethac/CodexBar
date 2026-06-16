@@ -171,4 +171,51 @@ struct GoogleCloudProviderTests {
         #expect(report.steps.first?.status == .failure)
         #expect(report.steps.dropFirst().allSatisfy { $0.status == .skipped })
     }
+
+    @Test
+    func `missing settings surface concrete fetch error instead of unavailable strategy`() async throws {
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: .googlecloud)
+        let outcome = await descriptor.fetchOutcome(context: Self.makeFetchContext(environment: [:]))
+
+        #expect(outcome.attempts.map(\.strategyID) == ["googlecloud.api.billing"])
+        #expect(outcome.attempts.first?.wasAvailable == true)
+
+        do {
+            _ = try outcome.result.get()
+            Issue.record("Expected Google Cloud fetch to fail without settings")
+        } catch let error as GoogleCloudUsageError {
+            #expect(error == .missingSetting("billing project id"))
+        } catch {
+            Issue.record("Expected GoogleCloudUsageError, got \(error)")
+        }
+    }
+
+    private static func makeFetchContext(environment: [String: String]) -> ProviderFetchContext {
+        ProviderFetchContext(
+            runtime: .app,
+            sourceMode: .api,
+            includeCredits: false,
+            webTimeout: 1,
+            webDebugDumpHTML: false,
+            verbose: false,
+            env: environment,
+            settings: nil,
+            fetcher: UsageFetcher(environment: environment),
+            claudeFetcher: GoogleCloudStubClaudeFetcher(),
+            browserDetection: BrowserDetection(cacheTTL: 0))
+    }
+}
+
+private struct GoogleCloudStubClaudeFetcher: ClaudeUsageFetching {
+    func loadLatestUsage(model _: String) async throws -> ClaudeUsageSnapshot {
+        throw GoogleCloudUsageError.missingCredentials
+    }
+
+    func debugRawProbe(model _: String) async -> String {
+        "stub"
+    }
+
+    func detectVersion() -> String? {
+        nil
+    }
 }

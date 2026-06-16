@@ -55,7 +55,7 @@ struct GoogleCloudUsageFetchStrategy: ProviderFetchStrategy {
     }
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        GoogleCloudSettingsReader.hasRequiredSettings(environment: context.env)
+        true
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
