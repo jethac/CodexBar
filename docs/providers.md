@@ -89,6 +89,7 @@ scan fails, while provider/account configuration changes replace obsolete result
 | Deepgram | API key → project discovery and usage breakdown API (`api`). |
 | Chutes | API key from config/env → subscription usage and quota API (`api`). |
 | ZenMux | Management API key from config/env → five-hour and seven-day quota windows plus PAYG balance (`api`). |
+| ai& | API key from config/env → 30-day organization spend from the analytics summary API (`api`). |
 | Zed | Zed editor Keychain session → `cloud.zed.dev/client/users/me` for plan and quota data (`local`). |
 
 ## Codex
@@ -512,5 +513,12 @@ scan fails, while provider/account configuration changes replace obsolete result
 - Shows subscription plan name when the Step Plan status API returns one.
 - Status: none yet.
 - Details: `docs/stepfun.md`.
+
+## ai&
+- API key from config or `AIAND_API_KEY` (org-scoped `sk-` key from console.aiand.com).
+- Reads the last 30 days of organization spend from `GET https://api.aiand.com/analytics/summary?range=30days`, the documented billing-grade aggregate.
+- Prepaid credits with no quota windows; no session or weekly meters are synthesized. The credit balance is console-only and not shown.
+- Analytics responses are cached server-side for 120 seconds, so spend can lag up to two minutes.
+- Details: `docs/aiand.md`.
 
 See also: `docs/provider.md` for architecture notes.
