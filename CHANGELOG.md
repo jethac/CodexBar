@@ -3,6 +3,7 @@
 ## 0.43.1 — Unreleased
 
 ### Added
+- ai&: add 30-day organization spend from the documented analytics summary API using org-scoped API keys.
 - ZenMux: add Management API usage with five-hour and weekly quotas, subscription expiry, and USD PAYG balance. Thanks @kays0x!
 
 ### Fixed
