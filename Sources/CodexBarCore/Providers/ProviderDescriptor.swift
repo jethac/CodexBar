@@ -113,6 +113,7 @@ public enum ProviderDescriptorRegistry {
         .sub2api: Sub2APIProviderDescriptor.descriptor,
         .wayfinder: WayfinderProviderDescriptor.descriptor,
         .zenmux: ZenMuxProviderDescriptor.descriptor,
+        .aiand: AiAndProviderDescriptor.descriptor,
     ]
     private static let bootstrap: Void = {
         for provider in UsageProvider.allCases {
