@@ -126,6 +126,7 @@ enum ProviderChoice: String, AppEnum {
         case .longcat: return nil // LongCat not yet supported in widgets
         case .zed: return nil // Zed not yet supported in widgets
         case .zenmux: return nil // ZenMux not yet supported in widgets
+        case .aiand: return nil // ai& not yet supported in widgets
         }
     }
 }
