@@ -153,6 +153,45 @@ struct AiAndProviderTests {
         #expect(implementation is AiAndProviderImplementation)
     }
 
+    @Test @MainActor
+    func `menu card renders spend through the generic API-spend path`() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            return Self.response(url: url, body: Self.summaryFixture)
+        }
+        let usage = try await AiAndUsageFetcher.fetchUsage(
+            "sk-test-fixture",
+            transport: transport,
+            now: now)
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .aiand,
+            metadata: AiAndProviderDescriptor.descriptor.metadata,
+            snapshot: usage.toUsageSnapshot(),
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: true,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            now: now))
+
+        #expect(model.metrics.isEmpty)
+        #expect(model.creditsText == nil)
+        #expect(model.providerCost?.title == "API spend")
+        #expect(model.providerCost?.spendLine == "Last 30 days: $42.18")
+        #expect(model.providerCost?.percentUsed == nil)
+        #expect(model.providerCost?.percentLine == nil)
+    }
+
     /// Sanitized from the documented /analytics/summary example (docs.aiand.com/analytics/summary/).
     private static let summaryFixture = #"""
     {
